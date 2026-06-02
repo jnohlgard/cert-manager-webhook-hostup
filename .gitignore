@@ -15,6 +15,9 @@
 # Ignore the built binary
 cert-manager-hostup-webhook
 
+# Local environment variables
+.env
+
 # Make artifacts
 bin
 _out
