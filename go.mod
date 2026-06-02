@@ -1,4 +1,4 @@
-module github.com/cert-manager/hostup-webhook
+module github.com/hostup/cert-manager-webhook-hostup
 
 go 1.25.0
 
