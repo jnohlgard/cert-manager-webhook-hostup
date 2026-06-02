@@ -131,8 +131,19 @@ subjects:
 
 ## Running the tests
 
+The test suite runs cert-manager's DNS-01 conformance tests against the real Hostup API. Three environment variables are required:
+
+| Variable | Description |
+|---|---|
+| `TEST_ZONE_NAME` | The DNS zone to use for testing, with a trailing dot (e.g. `example.com.`) |
+| `TEST_HOSTUP_API_KEY` | A Hostup API key with `read:dns` and `write:dns` scopes |
+| `TEST_HOSTUP_ZONE_ID` | The Hostup zone ID for the test zone (e.g. `zone_01...`) |
+
 ```bash
-TEST_ZONE_NAME=example.com. make test
+TEST_ZONE_NAME=example.com. \
+TEST_HOSTUP_API_KEY=your-api-key \
+TEST_HOSTUP_ZONE_ID=zone_01... \
+make test
 ```
 
-The test suite runs cert-manager's DNS-01 conformance tests against the example in-memory solver. To test against the real Hostup API, uncomment and configure the fixture in `main_test.go`.
+The test creates and deletes a real `_acme-challenge` TXT record in the specified zone and verifies propagation against authoritative DNS. The test is skipped if any of the required variables are unset.
