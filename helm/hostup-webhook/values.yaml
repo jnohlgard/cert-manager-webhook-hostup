@@ -8,7 +8,7 @@ certManager:
   serviceAccountName: cert-manager
 
 image:
-  repository: ghcr.io/cert-manager/hostup-webhook
+  repository: ghcr.io/hostup/cert-manager-webhook-hostup
   tag: latest
   pullPolicy: IfNotPresent
 
