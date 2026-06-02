@@ -18,7 +18,7 @@ A [cert-manager](https://cert-manager.io) ACME DNS-01 webhook solver for [Hostup
 ### 1. Deploy the webhook
 
 ```bash
-helm install hostup-webhook helm/example-webhook \
+helm install hostup-webhook helm/hostup-webhook \
   --namespace cert-manager \
   --set groupName=acme.yourdomain.com \
   --set image.repository=your-registry/cert-manager-hostup-webhook \
