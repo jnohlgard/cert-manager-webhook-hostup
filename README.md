@@ -1,63 +1,134 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/cert-manager/cert-manager/d53c0b9270f8cd90d908460d69502694e1838f5f/logo/logo-small.png" height="256" width="256" alt="cert-manager project logo" />
-</p>
+# cert-manager webhook for Hostup DNS
 
-# ACME webhook example
+A [cert-manager](https://cert-manager.io) ACME DNS-01 webhook solver for [Hostup](https://hostup.se). Allows cert-manager to issue certificates for domains managed in Hostup by automatically creating and removing `_acme-challenge` TXT records via the [Hostup API](https://developer.hostup.se).
 
-The ACME issuer type supports an optional 'webhook' solver, which can be used
-to implement custom DNS01 challenge solving logic.
+## Prerequisites
 
-This is useful if you need to use cert-manager with a DNS provider that is not
-officially supported in cert-manager core.
+- cert-manager ≥ 1.0 installed in your cluster
+- A domain managed in Hostup with an active DNS zone
+- A Hostup API key with the `read:dns` and `write:dns` scopes (create one at [cloud.hostup.se/api-management](https://cloud.hostup.se/api-management))
+- The DNS zone ID for your domain (visible in the Hostup control panel or via `GET /api/v2/dns-zones?name=<your-domain>`)
 
-## Why not in core?
+## Installation
 
-As the project & adoption has grown, there has been an influx of DNS provider
-pull requests to our core codebase. As this number has grown, the test matrix
-has become un-maintainable and so, it's not possible for us to certify that
-providers work to a sufficient level.
-
-By creating this 'interface' between cert-manager and DNS providers, we allow
-users to quickly iterate and test out new integrations, and then packaging
-those up themselves as 'extensions' to cert-manager.
-
-We can also then provide a standardised 'testing framework', or set of
-conformance tests, which allow us to validate that a DNS provider works as
-expected.
-
-## Creating your own webhook
-
-Webhook's themselves are deployed as Kubernetes API services, in order to allow
-administrators to restrict access to webhooks with Kubernetes RBAC.
-
-This is important, as otherwise it'd be possible for anyone with access to your
-webhook to complete ACME challenge validations and obtain certificates.
-
-To make the set up of these webhook's easier, we provide a template repository
-that can be used to get started quickly.
-
-When implementing your webhook, you should set the `groupName` in the
-[values.yml](deploy/example-webhook/values.yaml) of your chart to a domain name that 
-you - as the webhook-author - own. It should not need to be adjusted by the users of
-your chart.
-
-### Creating your own repository
-
-### Running the test suite
-
-All DNS providers **must** run the DNS01 provider conformance testing suite,
-else they will have undetermined behaviour when used with cert-manager.
-
-**It is essential that you configure and run the test suite when creating a
-DNS01 webhook.**
-
-An example Go test file has been provided in [main_test.go](https://github.com/cert-manager/webhook-example/blob/master/main_test.go).
-
-You can run the test suite with:
+### 1. Deploy the webhook
 
 ```bash
-$ TEST_ZONE_NAME=example.com. make test
+helm install hostup-webhook deploy/example-webhook \
+  --namespace cert-manager \
+  --set groupName=acme.yourdomain.com \
+  --set image.repository=your-registry/cert-manager-hostup-webhook \
+  --set image.tag=latest
 ```
 
-The example file has a number of areas you must fill in and replace with your
-own options in order for tests to pass.
+Set `groupName` to a domain you own — it is used as a Kubernetes API group name and must be unique within your cluster.
+
+### 2. Create the credentials Secret
+
+Create a Kubernetes Secret in the same namespace as the cert-manager `Issuer` or `ClusterIssuer` that will reference it. The Secret must contain two keys: one for the Hostup API key and one for the DNS zone ID.
+
+```bash
+kubectl create secret generic hostup-credentials \
+  --namespace cert-manager \
+  --from-literal=apiKey='<your-hostup-api-key>' \
+  --from-literal=zoneId='zone_01...'
+```
+
+### 3. Configure the Issuer
+
+Add a `webhook` solver to your `Issuer` or `ClusterIssuer` referencing this webhook:
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: you@example.com
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - dns01:
+          webhook:
+            groupName: acme.yourdomain.com
+            solverName: hostup
+            config:
+              apiKeySecretRef:
+                name: hostup-credentials
+                key: apiKey
+              zoneIDKey:
+                name: hostup-credentials
+                key: zoneId
+```
+
+### 4. Issue a certificate
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: example-tls
+  namespace: default
+spec:
+  secretName: example-tls
+  dnsNames:
+    - example.com
+    - "*.example.com"
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+```
+
+## Webhook configuration reference
+
+These fields go in the `config` block of the solver:
+
+| Field | Type | Description |
+|---|---|---|
+| `apiKeySecretRef.name` | string | Name of the Secret containing the Hostup API key |
+| `apiKeySecretRef.key` | string | Key within that Secret whose value is the API key |
+| `zoneIDKey.name` | string | Name of the Secret containing the DNS zone ID |
+| `zoneIDKey.key` | string | Key within that Secret whose value is the zone ID |
+
+`apiKeySecretRef` and `zoneIDKey` can point to the same Secret (recommended) or different Secrets. The Secret must be in the same namespace as the `Issuer`, or in the cert-manager namespace for a `ClusterIssuer`.
+
+## RBAC
+
+The webhook's service account needs permission to read Secrets in the namespace where credentials are stored. Add a Role and RoleBinding if the webhook is deployed in a different namespace than the credentials Secret:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hostup-webhook-secret-reader
+  namespace: cert-manager
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["hostup-credentials"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hostup-webhook-secret-reader
+  namespace: cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hostup-webhook-secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: hostup-webhook
+    namespace: cert-manager
+```
+
+## Running the tests
+
+```bash
+TEST_ZONE_NAME=example.com. make test
+```
+
+The test suite runs cert-manager's DNS-01 conformance tests against the example in-memory solver. To test against the real Hostup API, uncomment and configure the fixture in `main_test.go`.
