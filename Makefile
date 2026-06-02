@@ -5,6 +5,10 @@ ARCH ?= $(shell $(GO) env GOARCH)
 IMAGE_NAME := "webhook"
 IMAGE_TAG := "latest"
 
+CHART_DIR := helm/hostup-webhook
+CHART_VERSION := $(shell grep '^version:' $(CHART_DIR)/Chart.yaml | awk '{print $$2}')
+HELM_REGISTRY ?= ghcr.io/hostup/charts
+
 OUT := $(shell pwd)/_out
 
 # FIXME: Required to set the environment variables below. Remove when fixed.
@@ -22,11 +26,21 @@ test: setup-envtest
 .PHONY: clean
 clean:
 	chmod -R u+w $(LOCALBIN) $(OUT) 2>/dev/null || true
-	rm -rf $(LOCALBIN) $(OUT)
+	rm -rf $(LOCALBIN) $(OUT) hostup-webhook-*.tgz
 
 .PHONY: build
 build:
 	docker build -t "$(IMAGE_NAME):$(IMAGE_TAG)" .
+
+.PHONY: helm-package
+helm-package: $(OUT)/hostup-webhook-$(CHART_VERSION).tgz
+
+$(OUT)/hostup-webhook-$(CHART_VERSION).tgz: $(HELM_FILES) | $(OUT)
+	helm package $(CHART_DIR) --destination $(OUT)
+
+.PHONY: helm-push
+helm-push: helm-package
+	helm push $(OUT)/hostup-webhook-$(CHART_VERSION).tgz oci://$(HELM_REGISTRY)
 
 .PHONY: rendered-manifest.yaml
 rendered-manifest.yaml: $(OUT)/rendered-manifest.yaml
@@ -42,6 +56,9 @@ $(OUT)/rendered-manifest.yaml: $(HELM_FILES) | $(OUT)
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p "$(LOCALBIN)"
+
+$(OUT):
+	mkdir -p "$(OUT)"
 
 ## Tool Binaries
 
