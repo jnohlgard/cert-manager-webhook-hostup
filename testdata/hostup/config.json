@@ -1,0 +1,10 @@
+{
+  "apiKeySecretRef": {
+    "name": "hostup-credentials",
+    "key": "apiKey"
+  },
+  "zoneIDKey": {
+    "name": "hostup-credentials",
+    "key": "zoneId"
+  }
+}
