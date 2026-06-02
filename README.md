@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://hostup.se/images/logo.svg" height="60" alt="Hostup logo" />
+</p>
+
 # cert-manager webhook for Hostup DNS
 
 A [cert-manager](https://cert-manager.io) ACME DNS-01 webhook solver for [Hostup](https://hostup.se). Allows cert-manager to issue certificates for domains managed in Hostup by automatically creating and removing `_acme-challenge` TXT records via the [Hostup API](https://developer.hostup.se).
