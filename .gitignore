@@ -24,3 +24,4 @@ cert-manager-hostup-webhook
 # Make artifacts
 bin
 _out
+*.tgz
