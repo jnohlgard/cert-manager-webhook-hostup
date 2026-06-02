@@ -1,5 +1,9 @@
-apiVersion: v1
-appVersion: "1.0"
-description: cert-manager ACME DNS-01 webhook solver for Hostup
+apiVersion: v2
 name: hostup-webhook
+description: cert-manager ACME DNS-01 webhook solver for Hostup
+type: application
 version: 0.1.0
+appVersion: "0.1.0"
+home: https://hostup.se
+sources:
+  - https://github.com/hostup/cert-manager-webhook-hostup
