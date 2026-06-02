@@ -18,6 +18,9 @@ cert-manager-hostup-webhook
 # Local environment variables
 .env
 
+# Local Claude Code settings
+.claude/settings.local.json
+
 # Make artifacts
 bin
 _out
