@@ -1,41 +1,52 @@
 package main
 
 import (
+	"encoding/base64"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	acmetest "github.com/cert-manager/cert-manager/test/acme"
-
-	"github.com/cert-manager/webhook-example/example"
-)
-
-var (
-	zone = os.Getenv("TEST_ZONE_NAME")
 )
 
 func TestRunsSuite(t *testing.T) {
-	// The manifest path should contain a file named config.json that is a
-	// snippet of valid configuration that should be included on the
-	// ChallengeRequest passed as part of the test cases.
-	//
+	apiKey := os.Getenv("TEST_HOSTUP_API_KEY")
+	zoneID := os.Getenv("TEST_HOSTUP_ZONE_ID")
+	zone := os.Getenv("TEST_ZONE_NAME")
 
-	// Uncomment the below fixture when implementing your custom DNS provider
-	//fixture := acmetest.NewFixture(&customDNSProviderSolver{},
-	//	acmetest.SetResolvedZone(zone),
-	//	acmetest.SetAllowAmbientCredentials(false),
-	//	acmetest.SetManifestPath("testdata/my-custom-solver"),
-	//	acmetest.SetBinariesPath("_test/kubebuilder/bin"),
-	//)
-	solver := example.New("59351")
-	fixture := acmetest.NewFixture(solver,
-		acmetest.SetResolvedZone("example.com."),
-		acmetest.SetManifestPath("testdata/hostup"),
-		acmetest.SetDNSServer("127.0.0.1:59351"),
-		acmetest.SetUseAuthoritative(false),
+	if apiKey == "" || zoneID == "" || zone == "" {
+		t.Skip("TEST_HOSTUP_API_KEY, TEST_HOSTUP_ZONE_ID, and TEST_ZONE_NAME must be set")
+	}
+
+	dir := t.TempDir()
+
+	configJSON := []byte(`{
+  "apiKeySecretRef": {"name": "hostup-credentials", "key": "apiKey"},
+  "zoneIDKey":       {"name": "hostup-credentials", "key": "zoneId"}
+}`)
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	secretManifest := fmt.Sprintf(`apiVersion: v1
+kind: Secret
+metadata:
+  name: hostup-credentials
+type: Opaque
+data:
+  apiKey: %s
+  zoneId: %s
+`, base64.StdEncoding.EncodeToString([]byte(apiKey)), base64.StdEncoding.EncodeToString([]byte(zoneID)))
+	if err := os.WriteFile(filepath.Join(dir, "secret.yaml"), []byte(secretManifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fixture := acmetest.NewFixture(&customDNSProviderSolver{},
+		acmetest.SetResolvedZone(zone),
+		acmetest.SetAllowAmbientCredentials(false),
+		acmetest.SetManifestPath(dir),
 	)
-	//need to uncomment and  RunConformance delete runBasic and runExtended once https://github.com/cert-manager/cert-manager/pull/4835 is merged
-	//fixture.RunConformance(t)
 	fixture.RunBasic(t)
 	fixture.RunExtended(t)
-
 }
