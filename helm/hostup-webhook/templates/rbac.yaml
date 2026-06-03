@@ -5,6 +5,10 @@ metadata:
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "hostup-webhook.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccountAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- if .Values.rbac.webhookAuthReader.enabled }}
 ---
 # Grant the webhook permission to read the ConfigMap containing the Kubernetes
