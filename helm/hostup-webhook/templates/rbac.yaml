@@ -8,6 +8,7 @@ metadata:
     chart: {{ include "hostup-webhook.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+{{- if .Values.rbac.webhookAuthReader.enabled }}
 ---
 # Grant the webhook permission to read the ConfigMap containing the Kubernetes
 # apiserver's requestheader-ca-certificate.
@@ -31,6 +32,8 @@ subjects:
     kind: ServiceAccount
     name: {{ include "hostup-webhook.fullname" . }}
     namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.rbac.authDelegator.enabled }}
 ---
 # apiserver gets the auth-delegator role to delegate auth decisions to
 # the core apiserver
@@ -52,6 +55,8 @@ subjects:
     kind: ServiceAccount
     name: {{ include "hostup-webhook.fullname" . }}
     namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.rbac.domainSolver.enabled }}
 ---
 # Grant cert-manager permission to validate using our apiserver
 apiVersion: rbac.authorization.k8s.io/v1
@@ -89,6 +94,8 @@ subjects:
     kind: ServiceAccount
     name: {{ .Values.certManager.serviceAccountName }}
     namespace: {{ .Values.certManager.namespace }}
+{{- end }}
+{{- if .Values.rbac.secretReader.enabled }}
 {{- $secretNamespaces := .Values.secretNamespaces | default (list .Release.Namespace) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -129,4 +136,5 @@ subjects:
     kind: ServiceAccount
     name: {{ include "hostup-webhook.fullname" $ }}
     namespace: {{ $.Release.Namespace }}
+{{- end }}
 {{- end }}

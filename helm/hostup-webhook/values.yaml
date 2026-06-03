@@ -46,8 +46,30 @@ securityContext:
     drop:
       - ALL
 
+apiService:
+  # enabled controls whether the APIService cluster-scoped resource is created.
+  enabled: true
+
+rbac:
+  authDelegator:
+    # enabled controls whether the ClusterRoleBinding to system:auth-delegator is created.
+    enabled: true
+  webhookAuthReader:
+    # enabled controls whether the RoleBinding in kube-system for the webhook
+    # authentication reader is created.
+    enabled: true
+  domainSolver:
+    # enabled controls whether the ClusterRole and ClusterRoleBinding allowing
+    # cert-manager to call the webhook API are created.
+    enabled: true
+  secretReader:
+    # enabled controls whether the ClusterRole and per-namespace RoleBindings
+    # granting the webhook secret read access are created.
+    enabled: true
+
 # secretNamespaces lists the namespaces the webhook is allowed to read secrets
 # from. Defaults to the release namespace if empty.
+# Only used when rbac.secretReader.enabled is true.
 secretNamespaces: []
 
 nodeSelector: {}
