@@ -105,10 +105,7 @@ metadata:
   name: {{ include "hostup-webhook.fullname" $ }}:secret-reader
   namespace: {{ . | quote }}
   labels:
-    app: {{ include "hostup-webhook.name" $ }}
-    chart: {{ include "hostup-webhook.chart" $ }}
-    release: {{ $.Release.Name }}
-    heritage: {{ $.Release.Service }}
+    {{- include "hostup-webhook.labels" $ | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

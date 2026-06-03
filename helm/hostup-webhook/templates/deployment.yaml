@@ -16,6 +16,10 @@ spec:
         {{- include "hostup-webhook.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "hostup-webhook.fullname" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
