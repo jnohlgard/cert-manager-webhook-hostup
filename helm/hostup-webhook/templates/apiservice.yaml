@@ -4,10 +4,7 @@ kind: APIService
 metadata:
   name: v1alpha1.{{ .Values.groupName }}
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
   annotations:
     cert-manager.io/inject-ca-from: "{{ .Release.Namespace }}/{{ include "hostup-webhook.servingCertificate" . }}"
 spec:

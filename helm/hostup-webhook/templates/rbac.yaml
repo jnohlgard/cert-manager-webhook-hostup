@@ -4,10 +4,7 @@ metadata:
   name: {{ include "hostup-webhook.fullname" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 {{- if .Values.rbac.webhookAuthReader.enabled }}
 ---
 # Grant the webhook permission to read the ConfigMap containing the Kubernetes
@@ -19,10 +16,7 @@ metadata:
   name: {{ include "hostup-webhook.fullname" . }}:webhook-authentication-reader
   namespace: kube-system
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -42,10 +36,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "hostup-webhook.fullname" . }}:auth-delegator
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -64,10 +55,7 @@ kind: ClusterRole
 metadata:
   name: {{ include "hostup-webhook.fullname" . }}:domain-solver
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - {{ .Values.groupName }}
@@ -81,10 +69,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "hostup-webhook.fullname" . }}:domain-solver
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -103,10 +88,7 @@ kind: ClusterRole
 metadata:
   name: {{ include "hostup-webhook.fullname" . }}:secret-reader
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ""

@@ -4,21 +4,16 @@ metadata:
   name: {{ include "hostup-webhook.fullname" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: {{ include "hostup-webhook.name" . }}
-    chart: {{ include "hostup-webhook.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "hostup-webhook.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "hostup-webhook.name" . }}
-      release: {{ .Release.Name }}
+      {{- include "hostup-webhook.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ include "hostup-webhook.name" . }}
-        release: {{ .Release.Name }}
+        {{- include "hostup-webhook.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "hostup-webhook.fullname" . }}
       {{- with .Values.podSecurityContext }}
