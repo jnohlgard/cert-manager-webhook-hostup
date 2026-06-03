@@ -19,6 +19,9 @@ replicaCount: 1
 # Leave empty to use the server default.
 logFormat: ""
 
+# extraArgs passes additional command line arguments to the webhook server.
+extraArgs: []
+
 nameOverride: ""
 fullnameOverride: ""
 
