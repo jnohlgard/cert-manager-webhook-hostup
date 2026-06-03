@@ -21,10 +21,18 @@ spec:
         release: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ include "hostup-webhook.fullname" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+{{ toYaml . | indent 12 }}
+          {{- end }}
           args:
             - --tls-cert-file=/tls/tls.crt
             - --tls-private-key-file=/tls/tls.key
