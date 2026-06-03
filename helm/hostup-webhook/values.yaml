@@ -46,6 +46,8 @@ securityContext:
     drop:
       - ALL
 
+# secretNamespaces lists the namespaces the webhook is allowed to read secrets
+# from. Defaults to the release namespace if empty.
 secretNamespaces: []
 
 nodeSelector: {}
