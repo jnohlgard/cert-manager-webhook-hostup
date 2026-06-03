@@ -15,6 +15,10 @@ image:
 
 replicaCount: 1
 
+# logFormat sets the logging output format. Supported values: "json", "text".
+# Leave empty to use the server default.
+logFormat: ""
+
 nameOverride: ""
 fullnameOverride: ""
 
