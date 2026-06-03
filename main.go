@@ -18,7 +18,10 @@ import (
 
 	"github.com/cert-manager/cert-manager/pkg/acme/webhook/apis/acme/v1alpha1"
 	"github.com/cert-manager/cert-manager/pkg/acme/webhook/cmd"
+	logf "github.com/cert-manager/cert-manager/pkg/logs"
 )
+
+var log = logf.Log.WithName("hostup-solver")
 
 const hostupAPIBase = "https://cloud.hostup.se/api/v2"
 
@@ -50,6 +53,8 @@ func (c *customDNSProviderSolver) Name() string {
 }
 
 func (c *customDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
+	log := log.WithValues("fqdn", ch.ResolvedFQDN, "zone", ch.ResolvedZone, "namespace", ch.ResourceNamespace)
+	log.Info("presenting DNS challenge")
 	cfg, err := loadConfig(ch.Config)
 	if err != nil {
 		return err
@@ -58,10 +63,17 @@ func (c *customDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	return createTXTRecord(apiKey, zoneID, recordName(ch.ResolvedFQDN, ch.ResolvedZone), ch.Key)
+	if err := createTXTRecord(apiKey, zoneID, recordName(ch.ResolvedFQDN, ch.ResolvedZone), ch.Key); err != nil {
+		log.Error(err, "failed to create TXT record")
+		return err
+	}
+	log.Info("DNS challenge presented successfully")
+	return nil
 }
 
 func (c *customDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
+	log := log.WithValues("fqdn", ch.ResolvedFQDN, "zone", ch.ResolvedZone, "namespace", ch.ResourceNamespace)
+	log.Info("cleaning up DNS challenge")
 	cfg, err := loadConfig(ch.Config)
 	if err != nil {
 		return err
@@ -70,7 +82,12 @@ func (c *customDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	return deleteTXTRecord(apiKey, zoneID, recordName(ch.ResolvedFQDN, ch.ResolvedZone), ch.Key)
+	if err := deleteTXTRecord(apiKey, zoneID, recordName(ch.ResolvedFQDN, ch.ResolvedZone), ch.Key); err != nil {
+		log.Error(err, "failed to delete TXT record")
+		return err
+	}
+	log.Info("DNS challenge cleaned up successfully")
+	return nil
 }
 
 func (c *customDNSProviderSolver) Initialize(kubeClientConfig *rest.Config, stopCh <-chan struct{}) error {
