@@ -7,8 +7,8 @@ on:
 
 env:
   REGISTRY: codeberg.org
-  IMAGE: codeberg.org/r5t/cert-manager-webhook-hostup
-  HELM_REGISTRY: codeberg.org/r5t
+  IMAGE: codeberg.org/${{ github.repository }}
+  HELM_REGISTRY: codeberg.org/${{ github.repository_owner }}
 
 jobs:
   release:
