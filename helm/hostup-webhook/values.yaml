@@ -46,6 +46,8 @@ securityContext:
     drop:
       - ALL
 
+secretNamespaces: []
+
 nodeSelector: {}
 
 tolerations: []
