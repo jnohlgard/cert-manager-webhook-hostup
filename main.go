@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -63,8 +64,10 @@ func (c *customDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	if err := createTXTRecord(apiKey, zoneID, recordName(ch.ResolvedFQDN, ch.ResolvedZone), ch.Key); err != nil {
-		log.Error(err, "failed to create TXT record")
+	name := recordName(ch.ResolvedFQDN, ch.ResolvedZone)
+	log.Info("creating TXT record", "recordName", name, "zoneID", zoneID)
+	if err := createTXTRecord(log, apiKey, zoneID, name, ch.Key); err != nil {
+		log.Error(err, "failed to create TXT record", "recordName", name, "zoneID", zoneID)
 		return err
 	}
 	log.Info("DNS challenge presented successfully")
@@ -82,8 +85,10 @@ func (c *customDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	if err := deleteTXTRecord(apiKey, zoneID, recordName(ch.ResolvedFQDN, ch.ResolvedZone), ch.Key); err != nil {
-		log.Error(err, "failed to delete TXT record")
+	name := recordName(ch.ResolvedFQDN, ch.ResolvedZone)
+	log.Info("deleting TXT record", "recordName", name, "zoneID", zoneID)
+	if err := deleteTXTRecord(log, apiKey, zoneID, name, ch.Key); err != nil {
+		log.Error(err, "failed to delete TXT record", "recordName", name, "zoneID", zoneID)
 		return err
 	}
 	log.Info("DNS challenge cleaned up successfully")
@@ -100,18 +105,20 @@ func (c *customDNSProviderSolver) Initialize(kubeClientConfig *rest.Config, stop
 }
 
 func (c *customDNSProviderSolver) credentials(cfg customDNSProviderConfig, namespace string) (apiKey, zoneID string, err error) {
+	log.V(1).Info("fetching API key secret", "secret", cfg.APIKeySecretRef.Name, "key", cfg.APIKeySecretRef.Key, "namespace", namespace)
 	apiKeySecret, err := c.client.CoreV1().Secrets(namespace).Get(context.Background(), cfg.APIKeySecretRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to get API key secret %q in namespace %q: %w", cfg.APIKeySecretRef.Name, namespace, err)
 	}
 	apiKeyBytes, ok := apiKeySecret.Data[cfg.APIKeySecretRef.Key]
 	if !ok {
 		return "", "", fmt.Errorf("key %q not found in secret %q", cfg.APIKeySecretRef.Key, cfg.APIKeySecretRef.Name)
 	}
 
+	log.V(1).Info("fetching zone ID secret", "secret", cfg.ZoneIDKey.Name, "key", cfg.ZoneIDKey.Key, "namespace", namespace)
 	zoneIDSecret, err := c.client.CoreV1().Secrets(namespace).Get(context.Background(), cfg.ZoneIDKey.Name, metav1.GetOptions{})
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to get zone ID secret %q in namespace %q: %w", cfg.ZoneIDKey.Name, namespace, err)
 	}
 	zoneIDBytes, ok := zoneIDSecret.Data[cfg.ZoneIDKey.Key]
 	if !ok {
@@ -165,7 +172,7 @@ func hostupRequest(method, endpoint, apiKey string, body io.Reader) (*http.Respo
 	return http.DefaultClient.Do(req)
 }
 
-func createTXTRecord(apiKey, zoneID, name, value string) error {
+func createTXTRecord(log logr.Logger, apiKey, zoneID, name, value string) error {
 	payload, err := json.Marshal(createRecordRequest{
 		Type:  "TXT",
 		Name:  name,
@@ -176,6 +183,7 @@ func createTXTRecord(apiKey, zoneID, name, value string) error {
 		return err
 	}
 	endpoint := fmt.Sprintf("%s/dns-zones/%s/records", hostupAPIBase, zoneID)
+	log.V(1).Info("sending create record request", "endpoint", endpoint)
 	resp, err := hostupRequest(http.MethodPost, endpoint, apiKey, bytes.NewReader(payload))
 	if err != nil {
 		return err
@@ -188,11 +196,12 @@ func createTXTRecord(apiKey, zoneID, name, value string) error {
 	return nil
 }
 
-func deleteTXTRecord(apiKey, zoneID, name, value string) error {
+func deleteTXTRecord(log logr.Logger, apiKey, zoneID, name, value string) error {
 	params := url.Values{}
 	params.Set("type", "TXT")
 	params.Set("name", name)
 	endpoint := fmt.Sprintf("%s/dns-zones/%s/records?%s", hostupAPIBase, zoneID, params.Encode())
+	log.V(1).Info("listing TXT records", "endpoint", endpoint)
 	resp, err := hostupRequest(http.MethodGet, endpoint, apiKey, nil)
 	if err != nil {
 		return err
@@ -206,16 +215,20 @@ func deleteTXTRecord(apiKey, zoneID, name, value string) error {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("hostup: decode list response: %w", err)
 	}
+	log.V(1).Info("listed TXT records", "count", len(result.Records))
 	for _, rec := range result.Records {
 		if rec.Value == value {
-			return deleteRecord(apiKey, zoneID, rec.ID)
+			log.V(1).Info("found matching record, deleting", "recordID", rec.ID)
+			return deleteRecord(log, apiKey, zoneID, rec.ID)
 		}
 	}
+	log.Info("no matching TXT record found, nothing to delete")
 	return nil
 }
 
-func deleteRecord(apiKey, zoneID, recordID string) error {
+func deleteRecord(log logr.Logger, apiKey, zoneID, recordID string) error {
 	endpoint := fmt.Sprintf("%s/dns-zones/%s/records/%s", hostupAPIBase, zoneID, recordID)
+	log.V(1).Info("sending delete record request", "endpoint", endpoint)
 	resp, err := hostupRequest(http.MethodDelete, endpoint, apiKey, nil)
 	if err != nil {
 		return err
