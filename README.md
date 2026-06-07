@@ -22,7 +22,8 @@ helm install hostup-webhook helm/hostup-webhook \
   --namespace cert-manager \
   --set groupName=acme.yourdomain.com \
   --set image.repository=your-registry/cert-manager-webhook-hostup \
-  --set image.tag=latest
+  --set image.tag=latest \
+  --set secretNames='{hostup-credentials}'
 ```
 
 Set `groupName` to a domain you own — it is used as a Kubernetes API group name and must be unique within your cluster.
@@ -101,6 +102,15 @@ These fields go in the `config` block of the solver:
 ## RBAC
 
 The webhook's service account needs permission to read Secrets in the namespace where credentials are stored. Add a Role and RoleBinding if the webhook is deployed in a different namespace than the credentials Secret:
+
+The Helm chart can create this binding for you. Set `secretNamespaces` when credentials live outside the release namespace, and set `secretNames` to limit access to the exact credential Secret names:
+
+```bash
+helm upgrade --install hostup-webhook helm/hostup-webhook \
+  --namespace cert-manager \
+  --set secretNamespaces='{cert-manager}' \
+  --set secretNames='{hostup-credentials}'
+```
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
