@@ -90,12 +90,12 @@ spec:
 
 These fields go in the `config` block of the solver:
 
-| Field | Type | Description |
-|---|---|---|
-| `apiKeySecretRef.name` | string | Name of the Secret containing the Hostup API key |
-| `apiKeySecretRef.key` | string | Key within that Secret whose value is the API key |
-| `zoneIDKey.name` | string | Name of the Secret containing the DNS zone ID |
-| `zoneIDKey.key` | string | Key within that Secret whose value is the zone ID |
+| Field                  | Type   | Description                                       |
+|------------------------|--------|---------------------------------------------------|
+| `apiKeySecretRef.name` | string | Name of the Secret containing the Hostup API key  |
+| `apiKeySecretRef.key`  | string | Key within that Secret whose value is the API key |
+| `zoneIDKey.name`       | string | Name of the Secret containing the DNS zone ID     |
+| `zoneIDKey.key`        | string | Key within that Secret whose value is the zone ID |
 
 `apiKeySecretRef` and `zoneIDKey` can point to the same Secret (recommended) or different Secrets. The Secret must be in the same namespace as the `Issuer`, or in the cert-manager namespace for a `ClusterIssuer`.
 
@@ -143,11 +143,11 @@ subjects:
 
 The test suite runs cert-manager's DNS-01 conformance tests against the real Hostup API. Three environment variables are required:
 
-| Variable | Description |
-|---|---|
-| `TEST_ZONE_NAME` | The DNS zone to use for testing, with a trailing dot (e.g. `example.com.`) |
-| `TEST_HOSTUP_API_KEY` | A Hostup API key with `read:dns` and `write:dns` scopes |
-| `TEST_HOSTUP_ZONE_ID` | The Hostup zone ID for the test zone (e.g. `zone_01...`) |
+| Variable              | Description                                                                |
+|-----------------------|----------------------------------------------------------------------------|
+| `TEST_ZONE_NAME`      | The DNS zone to use for testing, with a trailing dot (e.g. `example.com.`) |
+| `TEST_HOSTUP_API_KEY` | A Hostup API key with `read:dns` and `write:dns` scopes                    |
+| `TEST_HOSTUP_ZONE_ID` | The Hostup zone ID for the test zone (e.g. `zone_01...`)                   |
 
 ```bash
 TEST_ZONE_NAME=example.com. \
