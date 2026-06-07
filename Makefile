@@ -47,10 +47,10 @@ rendered-manifest.yaml: $(OUT)/rendered-manifest.yaml
 
 $(OUT)/rendered-manifest.yaml: $(HELM_FILES) | $(OUT)
 	helm template \
-	    --name hostup-webhook \
-            --set image.repository=$(IMAGE_NAME) \
-            --set image.tag=$(IMAGE_TAG) \
-            helm/hostup-webhook > $@
+		--set image.repository=$(IMAGE_NAME) \
+		--set image.tag=$(IMAGE_TAG) \
+		hostup-webhook \
+		helm/hostup-webhook > $@
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin

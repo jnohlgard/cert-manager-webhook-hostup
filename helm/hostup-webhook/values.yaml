@@ -49,6 +49,8 @@ serviceAccountAnnotations: {}
 
 podSecurityContext:
   runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
 
@@ -85,6 +87,11 @@ rbac:
 # from. Defaults to the release namespace if empty.
 # Only used when rbac.secretReader.enabled is true.
 secretNamespaces: []
+
+# secretNames optionally limits secret read access to these Secret names in each
+# configured secret namespace. Leave empty to allow get access to any Secret in
+# those namespaces.
+secretNames: []
 
 nodeSelector: {}
 
