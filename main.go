@@ -42,14 +42,17 @@ type customDNSProviderSolver struct {
 	client kubernetes.Interface
 }
 
-type secretKeySelector struct {
+// localObjectRef references a Kubernetes Secret or ConfigMap by name, kind,
+// and data key. Use "Secret" or "ConfigMap" for the Kind field.
+type localObjectRef struct {
+	Kind string `json:"kind"`
 	Name string `json:"name"`
 	Key  string `json:"key"`
 }
 
 type customDNSProviderConfig struct {
-	APIKeySecretRef secretKeySelector `json:"apiKeySecretRef"`
-	ZoneIDKey       secretKeySelector `json:"zoneIDKey"`
+	APIKeyRef localObjectRef `json:"apiKeyRef"`
+	ZoneIDRef localObjectRef `json:"zoneIDRef"`
 }
 
 func (c *customDNSProviderSolver) Name() string {
@@ -108,36 +111,58 @@ func (c *customDNSProviderSolver) Initialize(kubeClientConfig *rest.Config, stop
 }
 
 func (c *customDNSProviderSolver) credentials(cfg customDNSProviderConfig, namespace string) (apiKey, zoneID string, err error) {
-	log.V(1).Info("fetching API key secret", "secret", cfg.APIKeySecretRef.Name, "key", cfg.APIKeySecretRef.Key, "namespace", namespace)
-	apiKeySecret, err := c.client.CoreV1().Secrets(namespace).Get(context.Background(), cfg.APIKeySecretRef.Name, metav1.GetOptions{})
+	apiKeyBytes, err := c.getData(cfg.APIKeyRef, namespace)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get API key secret %q in namespace %q: %w", cfg.APIKeySecretRef.Name, namespace, err)
-	}
-	apiKeyBytes, ok := apiKeySecret.Data[cfg.APIKeySecretRef.Key]
-	if !ok {
-		return "", "", fmt.Errorf("key %q not found in secret %q", cfg.APIKeySecretRef.Key, cfg.APIKeySecretRef.Name)
+		return "", "", err
 	}
 
-	log.V(1).Info("fetching zone ID secret", "secret", cfg.ZoneIDKey.Name, "key", cfg.ZoneIDKey.Key, "namespace", namespace)
-	zoneIDSecret, err := c.client.CoreV1().Secrets(namespace).Get(context.Background(), cfg.ZoneIDKey.Name, metav1.GetOptions{})
+	zoneIDBytes, err := c.getData(cfg.ZoneIDRef, namespace)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get zone ID secret %q in namespace %q: %w", cfg.ZoneIDKey.Name, namespace, err)
-	}
-	zoneIDBytes, ok := zoneIDSecret.Data[cfg.ZoneIDKey.Key]
-	if !ok {
-		return "", "", fmt.Errorf("key %q not found in secret %q", cfg.ZoneIDKey.Key, cfg.ZoneIDKey.Name)
+		return "", "", err
 	}
 
 	apiKey = strings.TrimSpace(string(apiKeyBytes))
 	zoneID = strings.TrimSpace(string(zoneIDBytes))
 	if apiKey == "" {
-		return "", "", fmt.Errorf("key %q in secret %q is empty", cfg.APIKeySecretRef.Key, cfg.APIKeySecretRef.Name)
+		return "", "", fmt.Errorf("key %q in %s %q is empty", cfg.APIKeyRef.Key, cfg.APIKeyRef.Kind, cfg.APIKeyRef.Name)
 	}
 	if zoneID == "" {
-		return "", "", fmt.Errorf("key %q in secret %q is empty", cfg.ZoneIDKey.Key, cfg.ZoneIDKey.Name)
+		return "", "", fmt.Errorf("key %q in %s %q is empty", cfg.ZoneIDRef.Key, cfg.ZoneIDRef.Kind, cfg.ZoneIDRef.Name)
 	}
 
 	return apiKey, zoneID, nil
+}
+
+// getData retrieves a single data entry from a Secret or ConfigMap.
+func (c *customDNSProviderSolver) getData(ref localObjectRef, namespace string) ([]byte, error) {
+	log.V(1).Info("fetching data", "kind", ref.Kind, "name", ref.Name, "key", ref.Key, "namespace", namespace)
+
+	switch strings.ToLower(ref.Kind) {
+	case "secret":
+		secret, err := c.client.CoreV1().Secrets(namespace).Get(context.Background(), ref.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get secret %q in namespace %q: %w", ref.Name, namespace, err)
+		}
+		data, ok := secret.Data[ref.Key]
+		if !ok {
+			return nil, fmt.Errorf("key %q not found in secret %q", ref.Key, ref.Name)
+		}
+		return data, nil
+
+	case "configmap":
+		cm, err := c.client.CoreV1().ConfigMaps(namespace).Get(context.Background(), ref.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get configmap %q in namespace %q: %w", ref.Name, namespace, err)
+		}
+		data, ok := cm.Data[ref.Key]
+		if !ok {
+			return nil, fmt.Errorf("key %q not found in configmap %q", ref.Key, ref.Name)
+		}
+		return []byte(data), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported kind %q in ref %q (must be \"Secret\" or \"ConfigMap\")", ref.Kind, ref.Name)
+	}
 }
 
 // recordName returns the record name relative to the zone (no trailing dot).
@@ -288,11 +313,11 @@ func loadConfig(cfgJSON *extapi.JSON) (customDNSProviderConfig, error) {
 	if err := json.Unmarshal(cfgJSON.Raw, &cfg); err != nil {
 		return cfg, fmt.Errorf("error decoding solver config: %v", err)
 	}
-	if cfg.APIKeySecretRef.Name == "" || cfg.APIKeySecretRef.Key == "" {
-		return cfg, fmt.Errorf("apiKeySecretRef.name and apiKeySecretRef.key are required")
+	if cfg.APIKeyRef.Kind == "" || cfg.APIKeyRef.Name == "" || cfg.APIKeyRef.Key == "" {
+		return cfg, fmt.Errorf("apiKeyRef.kind, apiKeyRef.name, and apiKeyRef.key are required")
 	}
-	if cfg.ZoneIDKey.Name == "" || cfg.ZoneIDKey.Key == "" {
-		return cfg, fmt.Errorf("zoneIDKey.name and zoneIDKey.key are required")
+	if cfg.ZoneIDRef.Kind == "" || cfg.ZoneIDRef.Name == "" || cfg.ZoneIDRef.Key == "" {
+		return cfg, fmt.Errorf("zoneIDRef.kind, zoneIDRef.name, and zoneIDRef.key are required")
 	}
 	return cfg, nil
 }

@@ -28,9 +28,9 @@ helm install hostup-webhook helm/hostup-webhook \
 
 Set `groupName` to a domain you own — it is used as a Kubernetes API group name and must be unique within your cluster.
 
-### 2. Create the credentials Secret
+### 2. Create the credentials
 
-Create a Kubernetes Secret in the same namespace as the cert-manager `Issuer` or `ClusterIssuer` that will reference it. The Secret must contain two keys: one for the Hostup API key and one for the DNS zone ID.
+The webhook reads credentials from Kubernetes Secrets or ConfigMaps. Create a Secret (recommended for API keys) or ConfigMap in the same namespace as the cert-manager `Issuer` or `ClusterIssuer`:
 
 ```bash
 kubectl create secret generic hostup-credentials \
@@ -60,10 +60,12 @@ spec:
             groupName: acme.yourdomain.com
             solverName: hostup
             config:
-              apiKeySecretRef:
+              apiKeyRef:
+                kind: Secret
                 name: hostup-credentials
                 key: apiKey
-              zoneIDKey:
+              zoneIDRef:
+                kind: Secret
                 name: hostup-credentials
                 key: zoneId
 ```
@@ -90,20 +92,22 @@ spec:
 
 These fields go in the `config` block of the solver:
 
-| Field                  | Type   | Description                                       |
-|------------------------|--------|---------------------------------------------------|
-| `apiKeySecretRef.name` | string | Name of the Secret containing the Hostup API key  |
-| `apiKeySecretRef.key`  | string | Key within that Secret whose value is the API key |
-| `zoneIDKey.name`       | string | Name of the Secret containing the DNS zone ID     |
-| `zoneIDKey.key`        | string | Key within that Secret whose value is the zone ID |
+| Field             | Type   | Description                                                        |
+|-------------------|--------|--------------------------------------------------------------------|
+| `apiKeyRef.kind`  | string | `"Secret"` or `"ConfigMap"`                                        |
+| `apiKeyRef.name`  | string | Name of the Secret or ConfigMap containing the Hostup API key      |
+| `apiKeyRef.key`   | string | Key within that resource whose value is the API key                |
+| `zoneIDRef.kind`  | string | `"Secret"` or `"ConfigMap"`                                        |
+| `zoneIDRef.name`  | string | Name of the Secret or ConfigMap containing the DNS zone ID         |
+| `zoneIDRef.key`   | string | Key within that resource whose value is the zone ID                |
 
-`apiKeySecretRef` and `zoneIDKey` can point to the same Secret (recommended) or different Secrets. The Secret must be in the same namespace as the `Issuer`, or in the cert-manager namespace for a `ClusterIssuer`.
+`apiKeyRef` and `zoneIDRef` can point to the same resource (recommended) or different resources. They can also mix types — e.g. API key in a Secret and zone ID in a ConfigMap. The resource must be in the same namespace as the `Issuer`, or in the cert-manager namespace for a `ClusterIssuer`.
 
 ## RBAC
 
-The webhook's service account needs permission to read Secrets in the namespace where credentials are stored. Add a Role and RoleBinding if the webhook is deployed in a different namespace than the credentials Secret:
+The webhook's service account needs permission to read Secrets and/or ConfigMaps in the namespace where credentials are stored. Add a Role and RoleBinding if the webhook is deployed in a different namespace than the credentials:
 
-The Helm chart can create this binding for you. Set `secretNamespaces` when credentials live outside the release namespace, and set `secretNames` to limit access to the exact credential Secret names:
+The Helm chart can create this binding for you. Set `secretNamespaces` when credentials live outside the release namespace, and set `secretNames` to limit access to the exact resource names:
 
 ```bash
 helm upgrade --install hostup-webhook helm/hostup-webhook \

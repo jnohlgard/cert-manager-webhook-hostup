@@ -1,9 +1,11 @@
 {
-  "apiKeySecretRef": {
+  "apiKeyRef": {
+    "kind": "Secret",
     "name": "hostup-credentials",
     "key": "apiKey"
   },
-  "zoneIDKey": {
+  "zoneIDRef": {
+    "kind": "Secret",
     "name": "hostup-credentials",
     "key": "zoneId"
   }

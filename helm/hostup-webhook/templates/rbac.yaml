@@ -98,6 +98,7 @@ rules:
       - ""
     resources:
       - secrets
+      - configmaps
     verbs:
       - get
     {{- with .Values.secretNames }}

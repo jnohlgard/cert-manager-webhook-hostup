@@ -11,6 +11,12 @@ import (
 	"reflect"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
+
 	acmetest "github.com/cert-manager/cert-manager/test/acme"
 )
 
@@ -125,6 +131,66 @@ func TestLoadConfigRequiresSecretSelectors(t *testing.T) {
 	}
 }
 
+func TestLoadConfigRequiresKind(t *testing.T) {
+	cfg := &extapi.JSON{Raw: []byte(`{
+		"apiKeyRef": {"name": "s", "key": "k"},
+		"zoneIDRef": {"kind": "Secret", "name": "s", "key": "k"}
+	}`)}
+	if _, err := loadConfig(cfg); err == nil {
+		t.Fatal("expected missing apiKeyRef.kind to fail")
+	}
+}
+
+func TestGetDataFromSecret(t *testing.T) {
+	solver := &customDNSProviderSolver{}
+	solver.Initialize(&rest.Config{}, nil)
+
+	// Use a fake client
+	fakeClient := fake.NewSimpleClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "creds", Namespace: "default"},
+		Data:       map[string][]byte{"apiKey": []byte("secret-key")},
+	})
+	solver.client = fakeClient
+
+	data, err := solver.getData(localObjectRef{Kind: "Secret", Name: "creds", Key: "apiKey"}, "default")
+	if err != nil {
+		t.Fatalf("getData returned error: %v", err)
+	}
+	if string(data) != "secret-key" {
+		t.Fatalf("expected secret-key, got %s", data)
+	}
+}
+
+func TestGetDataFromConfigMap(t *testing.T) {
+	solver := &customDNSProviderSolver{}
+	solver.Initialize(&rest.Config{}, nil)
+
+	fakeClient := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "creds", Namespace: "default"},
+		Data:       map[string]string{"apiKey": "cm-key"},
+	})
+	solver.client = fakeClient
+
+	data, err := solver.getData(localObjectRef{Kind: "ConfigMap", Name: "creds", Key: "apiKey"}, "default")
+	if err != nil {
+		t.Fatalf("getData returned error: %v", err)
+	}
+	if string(data) != "cm-key" {
+		t.Fatalf("expected cm-key, got %s", data)
+	}
+}
+
+func TestGetDataUnsupportedKind(t *testing.T) {
+	solver := &customDNSProviderSolver{}
+	solver.Initialize(&rest.Config{}, nil)
+	solver.client = fake.NewSimpleClientset()
+
+	_, err := solver.getData(localObjectRef{Kind: "Pod", Name: "x", Key: "y"}, "default")
+	if err == nil {
+		t.Fatal("expected error for unsupported kind")
+	}
+}
+
 func TestRunsSuite(t *testing.T) {
 	apiKey := os.Getenv("TEST_HOSTUP_API_KEY")
 	zoneID := os.Getenv("TEST_HOSTUP_ZONE_ID")
@@ -136,10 +202,10 @@ func TestRunsSuite(t *testing.T) {
 
 	dir := t.TempDir()
 
-	configJSON := []byte(`{
-  "apiKeySecretRef": {"name": "hostup-credentials", "key": "apiKey"},
-  "zoneIDKey":       {"name": "hostup-credentials", "key": "zoneId"}
-}`)
+		configJSON := []byte(`{
+	  "apiKeyRef": {"kind": "Secret", "name": "hostup-credentials", "key": "apiKey"},
+	  "zoneIDRef": {"kind": "Secret", "name": "hostup-credentials", "key": "zoneId"}
+	}`)
 	if err := os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644); err != nil {
 		t.Fatal(err)
 	}
