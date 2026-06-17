@@ -152,7 +152,10 @@ func TestGetDataFromSecret(t *testing.T) {
 	})
 	solver.client = fakeClient
 
-	data, err := solver.getData(localObjectRef{Kind: "Secret", Name: "creds", Key: "apiKey"}, "default")
+	data, err := solver.getData(localObjectRef{
+		TypedLocalObjectReference: corev1.TypedLocalObjectReference{Kind: "Secret", Name: "creds"},
+		Key:                       "apiKey",
+	}, "default")
 	if err != nil {
 		t.Fatalf("getData returned error: %v", err)
 	}
@@ -171,7 +174,10 @@ func TestGetDataFromConfigMap(t *testing.T) {
 	})
 	solver.client = fakeClient
 
-	data, err := solver.getData(localObjectRef{Kind: "ConfigMap", Name: "creds", Key: "apiKey"}, "default")
+	data, err := solver.getData(localObjectRef{
+		TypedLocalObjectReference: corev1.TypedLocalObjectReference{Kind: "ConfigMap", Name: "creds"},
+		Key:                       "apiKey",
+	}, "default")
 	if err != nil {
 		t.Fatalf("getData returned error: %v", err)
 	}
@@ -185,7 +191,10 @@ func TestGetDataUnsupportedKind(t *testing.T) {
 	solver.Initialize(&rest.Config{}, nil)
 	solver.client = fake.NewSimpleClientset()
 
-	_, err := solver.getData(localObjectRef{Kind: "Pod", Name: "x", Key: "y"}, "default")
+	_, err := solver.getData(localObjectRef{
+		TypedLocalObjectReference: corev1.TypedLocalObjectReference{Kind: "Pod", Name: "x"},
+		Key:                       "y",
+	}, "default")
 	if err == nil {
 		t.Fatal("expected error for unsupported kind")
 	}

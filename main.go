@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -42,12 +43,12 @@ type customDNSProviderSolver struct {
 	client kubernetes.Interface
 }
 
-// localObjectRef references a Kubernetes Secret or ConfigMap by name, kind,
-// and data key. Use "Secret" or "ConfigMap" for the Kind field.
+// localObjectRef references a Kubernetes Secret or ConfigMap data entry.
+// It embeds TypedLocalObjectReference (kind + name + optional apiGroup) and
+// adds a key field for the specific data entry within the resource.
 type localObjectRef struct {
-	Kind string `json:"kind"`
-	Name string `json:"name"`
-	Key  string `json:"key"`
+	corev1.TypedLocalObjectReference `json:",inline"`
+	Key                              string `json:"key"`
 }
 
 type customDNSProviderConfig struct {
