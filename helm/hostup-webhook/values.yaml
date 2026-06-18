@@ -80,17 +80,17 @@ rbac:
     enabled: true
   secretReader:
     # enabled controls whether the ClusterRole and per-namespace RoleBindings
-    # granting the webhook secret read access are created.
+    # granting the webhook read access to Secrets and ConfigMaps are created.
     enabled: true
 
-# secretNamespaces lists the namespaces the webhook is allowed to read secrets
-# from. Defaults to the release namespace if empty.
+# secretNamespaces lists the namespaces the webhook is allowed to read
+# Secrets and ConfigMaps from. Defaults to the release namespace if empty.
 # Only used when rbac.secretReader.enabled is true.
 secretNamespaces: []
 
-# secretNames optionally limits secret read access to these Secret names in each
-# configured secret namespace. Leave empty to allow get access to any Secret in
-# those namespaces.
+# secretNames optionally limits read access to these resource names in each
+# configured namespace. Leave empty to allow get access to any Secret or
+# ConfigMap in those namespaces.
 secretNames: []
 
 nodeSelector: {}
