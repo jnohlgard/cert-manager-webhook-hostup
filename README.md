@@ -13,6 +13,41 @@ A [cert-manager](https://cert-manager.io) ACME DNS-01 webhook solver for [Hostup
 - A Hostup API key with the `read:dns` and `write:dns` scopes (create one at [cloud.hostup.se/api-management](https://cloud.hostup.se/api-management))
 - The DNS zone ID for your domain (visible in the Hostup control panel or via `GET /api/v2/dns-zones?name=<your-domain>`)
 
+## Migration from previous versions
+
+The solver configuration schema changed in this release. The old fields have been renamed and extended to support both Secrets and ConfigMaps:
+
+| Old field             | New field    | Change                              |
+|-----------------------|--------------|-------------------------------------|
+| `apiKeySecretRef`     | `apiKeyRef`  | Renamed; added `kind` field         |
+| `zoneIDKey`           | `zoneIDRef`  | Renamed; added `kind` field         |
+
+Before (old format):
+```yaml
+config:
+  apiKeySecretRef:
+    name: hostup-credentials
+    key: apiKey
+  zoneIDKey:
+    name: hostup-credentials
+    key: zoneId
+```
+
+After (new format):
+```yaml
+config:
+  apiKeyRef:
+    kind: Secret
+    name: hostup-credentials
+    key: apiKey
+  zoneIDRef:
+    kind: Secret
+    name: hostup-credentials
+    key: zoneId
+```
+
+The `kind` field is required and accepts `"Secret"` or `"ConfigMap"`. Update your Issuer/ClusterIssuer manifests before deploying the new webhook version.
+
 ## Installation
 
 ### 1. Deploy the webhook
